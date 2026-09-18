@@ -130,3 +130,14 @@ Auth/demo credentials:
 - CSP tightened to self-hosted scripts/styles, HSTS enabled, object-src disabled.
 - Keyboard focus and reduced-motion accessibility rules added.
 - GitHub CI continued to pass after feature changes; final head CI remains monitored by the automation.
+
+2026-09-18 19:02 Asia/Amman - Fresh production-state audit
+- Confirmed GitHub default branch head a9f439e8b00c4a0a7168e8894e3d88b944d33648 and inspected the current repository tree. No legacy repository/resource was touched.
+- Confirmed Supabase project gcrjwbmeuxaejndlsvrb is ACTIVE_HEALTHY and re-inspected the live public schema; all exposed application tables have RLS enabled.
+- Re-ran security advisor. Remaining notices are the intentionally exposed SECURITY DEFINER RPCs (public booking/slot RPCs and authenticated bootstrap/employee-update RPCs); no newly introduced table/RLS warning was reported.
+- Re-ran performance advisor. Found private.bootstrap_tokens.used_by FK missing a covering index and safely added partial index idx_bootstrap_tokens_used_by. Advisor rerun confirms the missing-FK-index finding is fixed; only unused-index informational findings remain, expected on a fresh/low-traffic project.
+- Vercel team Maintenance Union Irbid resolves correctly, but list_projects still returns zero projects. Therefore no deployment URL or portal route is marked verified/client-ready in this cycle.
+- GitHub workflow lookup for current head returned no workflow run via the available connector, so CI status cannot be newly asserted from this cycle.
+- Demo Auth accounts remain blocked by the available Supabase connector surface (no supported Auth-admin create-user operation exposed here). No unsafe auth fabrication or service-role exposure was attempted.
+- CLIENT-HANDOFF.txt remains intentionally absent until production HTTP routes and demo logins are verifiably ready.
+- Next actions: keep retrying Vercel project/deployment visibility; once available, verify /, /login, /admin, /showroom and /team over HTTP; create supported Supabase Auth demo users when an Auth-admin mechanism becomes available, bind manager/employee memberships, create sample assigned task, and execute end-to-end sign-in/isolation tests.
