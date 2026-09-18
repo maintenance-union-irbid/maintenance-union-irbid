@@ -141,3 +141,14 @@ Auth/demo credentials:
 - Demo Auth accounts remain blocked by the available Supabase connector surface (no supported Auth-admin create-user operation exposed here). No unsafe auth fabrication or service-role exposure was attempted.
 - CLIENT-HANDOFF.txt remains intentionally absent until production HTTP routes and demo logins are verifiably ready.
 - Next actions: keep retrying Vercel project/deployment visibility; once available, verify /, /login, /admin, /showroom and /team over HTTP; create supported Supabase Auth demo users when an Auth-admin mechanism becomes available, bind manager/employee memberships, create sample assigned task, and execute end-to-end sign-in/isolation tests.
+
+2026-09-18 21:01 Asia/Amman - Platform readiness re-audit
+- Reconfirmed repository isolation and latest main head 4dfb3167fe4406a0a1c674f9c06d0b9e6aa45b3a before touching documentation; no legacy resource was accessed or modified.
+- Reconfirmed Supabase gcrjwbmeuxaejndlsvrb is ACTIVE_HEALTHY.
+- Re-ran Supabase security advisor. Findings are unchanged: two intentional anon SECURITY DEFINER entry points (create_booking/get_available_slots) and four intentional authenticated notices (claim_initial_admin/create_booking/employee_update_booking/get_available_slots). No new RLS/table exposure finding appeared.
+- Re-ran Supabase performance advisor. Only unused-index INFO notices remain for idx_bookings_status and the newly added FK-support index idx_bootstrap_tokens_used_by; no missing-index or performance warning requiring a safe production change is present.
+- Rechecked GitHub Actions visibility for the latest head; connector still reports no associated workflow run, so no new CI claim is made.
+- Rechecked Vercel team team_MBhIK48bTvqv65VQuyNPjuYO. Team resolves correctly but still contains zero visible projects. Production HTTP route verification therefore remains blocked and no URL is promoted to client-ready.
+- Demo Auth account creation remains blocked by the currently exposed supported Supabase management surface, which has no Auth-admin create-user action. No direct auth-table fabrication, auth weakening, or service-role exposure was attempted.
+- CLIENT-HANDOFF.txt remains intentionally withheld because its required production URL and demo-login verification prerequisites are not yet satisfied.
+- Next actions remain: retry Vercel visibility/deployment, verify all portal routes over HTTP once visible, then create supported demo Auth users when an approved mechanism is available, bind roles/memberships, create the assigned employee demo task, test login and cross-role/cross-showroom isolation, and only then publish CLIENT-HANDOFF.txt.
