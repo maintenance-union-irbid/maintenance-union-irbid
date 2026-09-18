@@ -4,8 +4,16 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "dev": "vite",
     "check": "node --check app.js",
-    "test": "node --check app.js"
+    "build": "vite build",
+    "test": "npm run check && npm run build"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.45.4"
+  },
+  "devDependencies": {
+    "vite": "5.4.8"
   },
   "engines": {
     "node": ">=20"
