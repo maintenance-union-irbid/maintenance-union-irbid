@@ -64,3 +64,50 @@ Outstanding work for automated cycles
 - Verify all four internal portal logins and role isolation.
 - Resolve/verify the Vercel production project and test /, /login, /admin, /showroom and /team.
 - Add final CLIENT-HANDOFF.txt containing only verified live URLs and demo credentials.
+
+
+2026-09-18 18:xx Asia/Amman - Security, isolation and concurrency cycle
+- Added explicit profile foreign-key relationships for staff/profile embedding in PostgREST.
+- Updated app staff queries to use named profile relationships and improved admin employee filtering/display.
+- Removed temporary pg_net extension/schema after bootstrap experiments; the extension-in-public warning is gone.
+- Reran Supabase security and performance advisors.
+- Remaining security-definer notices are intentional constrained RPCs documented in docs/SECURITY.md.
+- Performance advisor reduced to a fresh/unused index informational notice only.
+
+Executed RLS isolation test with temporary users and second showroom:
+- General admin saw both test bookings: PASS.
+- Manager saw only own-showroom booking: PASS.
+- Assigned employee saw only assigned booking: PASS.
+- Unrelated authenticated user saw zero bookings: PASS.
+- Manager update on own-showroom booking affected 1 row: PASS.
+- Manager update attempt on other-showroom booking affected 0 rows: PASS.
+- Assigned employee update RPC on assigned booking: PASS.
+- Employee update RPC on unassigned booking rejected with authorization error: PASS.
+- All temporary RLS users/showroom/bookings removed after tests: PASS.
+
+Executed concurrency/overbooking test:
+- Demo slot capacity: 2.
+- Sent 3 simultaneous booking attempts for the same showroom/timestamp.
+- Attempt 1: accepted.
+- Attempt 2: accepted.
+- Attempt 3: rejected with "Selected slot is fully booked".
+- Temporary concurrency bookings removed after verification.
+- Database-level advisory locking/capacity enforcement: PASS.
+
+Build/CI hardening:
+- Removed remote runtime CDN dependency for Supabase client; frontend now imports pinned npm dependency and is bundled by Vite.
+- Added production Vite build configuration through package scripts.
+- Hardened CSP to self-hosted scripts only and added HSTS/object-src none.
+- Added GitHub Actions CI: dependency install, syntax, production build, high-severity production dependency audit, privileged-secret scan, security-header checks, required-route checks and build-output verification.
+- Earlier static CI checks passed. New bundled-build CI is running/being monitored.
+- Added README architecture/security/QA documentation plus docs/SECURITY.md, docs/QA.md and supabase/MIGRATIONS.md.
+
+Vercel:
+- A clean preview deployment request for project name maintenance-union-irbid-web was accepted and returned an initializing deployment URL/id.
+- The Vercel connector still cannot read the created deployment/project afterward and list_projects returns no projects for the team.
+- Subsequent production/preview operations on the earlier project returned permission errors. No Vercel URL is marked client-ready until the connector/account permission issue is resolved and HTTP routes are verified.
+
+Auth/demo credentials:
+- No privileged or insecure authentication bypass was added.
+- Supabase connector does not expose an Auth-admin create-user operation, and automated password/bootstrap attempts are blocked by tool safety.
+- Final handoff requires real Supabase Auth accounts for admin/manager/employee and end-to-end role-login tests. This remains an explicit blocker rather than a falsely claimed completion.
