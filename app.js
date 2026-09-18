@@ -515,16 +515,17 @@ async function renderShowroom(message='', isError=false) {
   if(!managers.length){shell('<section class="panel"><h1>بوابة صاحب المعرض</h1><p>لا يوجد معرض مرتبط بهذا الحساب كمدير.</p></section>');return}
   let showroomId=sessionStorage.getItem('showroom-manager-id')||managers[0].showroom_id
   if(!managers.some(m=>m.showroom_id===showroomId))showroomId=managers[0].showroom_id
-  const [sR,svcR,avR,bR,mR]=await Promise.all([
+  const [sR,svcR,avR,clR,bR,mR]=await Promise.all([
     supabase.from('showrooms').select('*').eq('id',showroomId).maybeSingle(),
     supabase.from('services').select('*').eq('showroom_id',showroomId).order('name'),
     supabase.from('showroom_availability').select('*').eq('showroom_id',showroomId).order('weekday'),
+    supabase.from('showroom_closures').select('*').eq('showroom_id',showroomId).order('closure_date'),
     supabase.from('bookings').select('*,services(name),showrooms(name,address)').eq('showroom_id',showroomId).order('scheduled_at'),
     supabase.from('showroom_memberships').select('showroom_id,user_id,role,is_active,profile:profiles!showroom_memberships_profile_fk(full_name,phone)').eq('showroom_id',showroomId).eq('role','employee')
   ])
-  const err=sR.error||svcR.error||avR.error||bR.error||mR.error
+  const err=sR.error||svcR.error||avR.error||clR.error||bR.error||mR.error
   if(err){shell(`<section class="panel">${notice(err.message,true)}</section>`);return}
-  const showroom=sR.data, services=svcR.data||[], availability=avR.data||[], bookings=bR.data||[], employees=mR.data||[]
+  const showroom=sR.data, services=svcR.data||[], availability=avR.data||[], closures=clR.data||[], bookings=bR.data||[], employees=mR.data||[]
   shell(`
     <section class="panel">
       <div class="page-heading">
@@ -532,6 +533,16 @@ async function renderShowroom(message='', isError=false) {
         ${managers.length>1?`<select id="manager-showroom">${managers.map(m=>`<option value="${m.showroom_id}" ${m.showroom_id===showroomId?'selected':''}>${escapeHtml(m.showrooms?.name||m.showroom_id)}</option>`).join('')}</select>`:''}
       </div>
       ${notice(message,isError)}
+      <div class="subpanel">
+        <h2>بيانات المعرض</h2>
+        <form id="showroom-profile" class="grid2">
+          <label>اسم المعرض<input id="showroom-name" value="${escapeHtml(showroom?.name||'')}" required></label>
+          <label>رقم الهاتف<input id="showroom-phone" value="${escapeHtml(showroom?.phone||'')}"></label>
+          <label>العنوان<input id="showroom-address" value="${escapeHtml(showroom?.address||'')}"></label>
+          <label>رابط الشعار<input id="showroom-logo-url" type="url" value="${escapeHtml(showroom?.logo_url||'')}" placeholder="https://..."></label>
+          <button class="btn primary" type="submit">حفظ بيانات المعرض</button>
+        </form>
+      </div>
       <div class="dashboard-grid">
         <div class="subpanel">
           <h2>الخدمات</h2>
@@ -554,6 +565,15 @@ async function renderShowroom(message='', isError=false) {
         </div>
       </div>
       <div class="subpanel">
+        <h2>الإجازات وإغلاق أيام محددة</h2>
+        <form id="add-closure" class="grid2">
+          <label>التاريخ<input id="closure-date" type="date" required></label>
+          <label>السبب<input id="closure-reason" placeholder="مثال: عطلة رسمية"></label>
+          <button class="btn primary" type="submit">إغلاق هذا اليوم</button>
+        </form>
+        ${closures.length?closures.map(cl=>`<div class="list-row"><div><strong>${escapeHtml(cl.closure_date)}</strong><small>${escapeHtml(cl.reason||'مغلق')}</small></div><button class="btn small" data-delete-closure="${cl.id}">إلغاء الإغلاق</button></div>`).join(''):'<div class="empty">لا توجد أيام إغلاق مسجلة.</div>'}
+      </div>
+      <div class="subpanel">
         <h2>موظفو المعرض</h2>
         <form id="add-employee" class="grid2">
           <label>UUID حساب الموظف<input id="employee-id" required></label>
@@ -571,6 +591,21 @@ async function renderShowroom(message='', isError=false) {
 
   const switcher=document.querySelector('#manager-showroom')
   if(switcher)switcher.onchange=()=>{sessionStorage.setItem('showroom-manager-id',switcher.value);renderShowroom()}
+
+  document.querySelector('#showroom-profile').onsubmit=async e=>{
+    e.preventDefault()
+    const payload={
+      name:document.querySelector('#showroom-name').value.trim(),
+      phone:document.querySelector('#showroom-phone').value.trim()||null,
+      address:document.querySelector('#showroom-address').value.trim()||null,
+      logo_url:document.querySelector('#showroom-logo-url').value.trim()||null
+    }
+    const {error}=await supabase.from('showrooms').update(payload).eq('id',showroomId)
+    if(error)return renderShowroom(error.message,true)
+    state.showrooms=[]
+    renderShowroom('تم حفظ بيانات المعرض.')
+  }
+
   document.querySelector('#add-service').onsubmit=async e=>{
     e.preventDefault();const name=document.querySelector('#service-name').value.trim();const duration=Number(document.querySelector('#service-duration').value)
     const {error}=await supabase.from('services').insert({showroom_id:showroomId,name,duration_minutes:duration})
@@ -590,6 +625,23 @@ async function renderShowroom(message='', isError=false) {
     const {error}=await supabase.from('showroom_availability').update({capacity:cap}).eq('id',inp.dataset.capacity)
     if(error)return renderShowroom(error.message,true);renderShowroom('تم تحديث السعة.')
   })
+  document.querySelector('#add-closure').onsubmit=async e=>{
+    e.preventDefault()
+    const closure_date=document.querySelector('#closure-date').value
+    const reason=document.querySelector('#closure-reason').value.trim()||null
+    const {error}=await supabase.from('showroom_closures').upsert(
+      {showroom_id:showroomId,closure_date,reason},
+      {onConflict:'showroom_id,closure_date'}
+    )
+    if(error)return renderShowroom(error.message,true)
+    renderShowroom('تم إغلاق اليوم ومنع الحجوزات عليه.')
+  }
+  document.querySelectorAll('[data-delete-closure]').forEach(btn=>btn.onclick=async()=>{
+    const {error}=await supabase.from('showroom_closures').delete().eq('id',btn.dataset.deleteClosure)
+    if(error)return renderShowroom(error.message,true)
+    renderShowroom('تم فتح اليوم للحجوزات من جديد.')
+  })
+
   document.querySelector('#add-employee').onsubmit=async e=>{
     e.preventDefault();const user_id=document.querySelector('#employee-id').value.trim()
     const {error}=await supabase.from('showroom_memberships').upsert({showroom_id:showroomId,user_id,role:'employee',is_active:true},{onConflict:'showroom_id,user_id'})
