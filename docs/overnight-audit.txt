@@ -1,0 +1,66 @@
+Maintenance Union Irbid - Build & Audit Log
+===============================================
+
+2026-09-18 17:xx Asia/Amman - Active build cycle
+
+Environment isolation
+- GitHub: maintenance-union-irbid/maintenance-union-irbid (private, separate organization)
+- Supabase: maintenance-union-irbid / gcrjwbmeuxaejndlsvrb (separate organization)
+- Vercel team: Maintenance Union Irbid (separate Hobby team)
+- Legacy SAFRETK/SOFA resources are excluded from this project.
+
+Database work completed
+- Created multi-showroom schema: profiles, showrooms, showroom_memberships, services, showroom_availability, showroom_closures, bookings.
+- Enabled RLS on exposed tables.
+- Added general-admin, showroom-manager and employee authorization boundaries.
+- Added booking/service/showroom referential integrity.
+- Added configurable per-slot capacity and showroom closures.
+- Added database-level validation for showroom/service membership, employee assignment, home address requirements, valid availability windows and slot alignment.
+- Added transaction-level advisory locking for concurrent bookings to prevent overbooking.
+- Added public available-slot RPC and constrained booking-creation RPC.
+- Added employee-only task update RPC.
+- Seeded one demo showroom, demo services and Sunday-Thursday availability.
+
+Security/performance checks already run
+- Supabase security advisor run after initial schema.
+- Fixed accidental public execution of internal trigger/security-definer functions.
+- Kept only the deliberately exposed booking/slot RPC surface.
+- Fixed missing composite foreign-key index.
+- Split overlapping permissive RLS write policies to avoid duplicate SELECT-policy execution.
+- No service-role credential or database password is stored in browser source.
+- Client uses only the Supabase publishable key.
+- Vercel security headers include CSP, X-Frame-Options, nosniff, restrictive permissions policy and strict referrer policy.
+
+Application work completed
+- Public customer booking portal: /.
+- Login portal: /login.
+- General administration portal: /admin.
+- Showroom manager portal: /showroom.
+- Maintenance employee portal: /team.
+- Customer flow keeps the selected showroom visible and limits services/slots to that showroom.
+- Address field is conditional on home vs showroom maintenance.
+- Confirmation presents order number, showroom, service, appointment and location.
+- Admin UI includes filters for showroom, status, date, employee and free-text search.
+- Manager UI includes services, availability/capacity, employee linking and task assignment.
+- Employee UI shows assigned showroom, service, location, appointment and execution notes/status.
+
+Repository status
+- Production static shell, app.js, styles.css and vercel.json are committed to the new repository.
+- No npm/build dependency is required for this static deployment path; external Supabase client import is pinned to an exact version.
+
+Vercel status
+- First production deployment request created deployment dpl_31xfRhDttmjdXJFQspr41t4nkTn7.
+- Returned deployment URL:
+  https://maintenance-union-irbid-bp3k25c1q-maintenance-union-irbid.vercel.app
+- Vercel connector has not yet been able to resolve the deployment back through get_deployment/list_projects, so this URL is NOT marked verified yet.
+- Do not hand this URL to the client until an automated later cycle confirms HTTP accessibility and portal routes.
+
+Outstanding work for automated cycles
+- Re-run Supabase security and performance advisors.
+- Validate anonymous showroom/service/slot queries under anon role.
+- Validate booking creation and simultaneous capacity behavior with realistic transactions.
+- Bootstrap dedicated demo Auth users for admin/manager/employee without bypassing Auth safety controls.
+- Create a sample assigned task after demo-user bootstrap.
+- Verify all four internal portal logins and role isolation.
+- Resolve/verify the Vercel production project and test /, /login, /admin, /showroom and /team.
+- Add final CLIENT-HANDOFF.txt containing only verified live URLs and demo credentials.
