@@ -55,3 +55,13 @@ jobs:
           set -euo pipefail
           test -f dist/index.html
           test -d dist/assets
+
+      - name: Upload verified build
+        uses: actions/upload-artifact@v4
+        with:
+          name: verified-build
+          path: |
+            dist/
+            package-lock.json
+          if-no-files-found: error
+          retention-days: 7
