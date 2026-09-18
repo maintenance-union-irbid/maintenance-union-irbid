@@ -250,14 +250,39 @@ async function renderBooking(message='', isError=false, success=null) {
 
 async function renderLogin(message='', isError=false) {
   if (state.session) {
+    const memberships = state.memberships
+      .map(m => `${m.role==='manager'?'مدير معرض':'موظف صيانة'}: ${escapeHtml(m.showrooms?.name||m.showroom_id)}`)
+      .join(' · ')
+
     shell(`
       <section class="panel narrow">
         <div class="eyebrow">الحساب الحالي</div>
         <h1>${escapeHtml(state.session.user.email || state.session.user.phone || state.session.user.id)}</h1>
         <p class="portal-note">الدور العام: <strong>${escapeHtml(state.profile?.global_role || 'user')}</strong></p>
+        ${memberships?`<p class="portal-note">${memberships}</p>`:''}
         ${notice(message,isError)}
+        ${state.profile?.global_role!=='admin'?`
+          <div class="subpanel">
+            <h2>تهيئة أول مدير عام</h2>
+            <p class="muted">يُستخدم مرة واحدة فقط عند تأسيس النظام. الكود لا يُحفظ بصيغته الأصلية في قاعدة البيانات.</p>
+            <form id="claim-admin" class="stack">
+              <label>كود التهيئة<input id="setup-token" type="password" autocomplete="off" required></label>
+              <button class="btn" type="submit">تفعيل الإدارة العامة</button>
+            </form>
+          </div>`:''}
         <button class="btn danger" id="logout">تسجيل الخروج</button>
       </section>`)
+
+    const claim=document.querySelector('#claim-admin')
+    if(claim) claim.onsubmit=async e=>{
+      e.preventDefault()
+      const token=document.querySelector('#setup-token').value
+      const {error}=await supabase.rpc('claim_initial_admin',{p_token:token})
+      if(error)return renderLogin(error.message,true)
+      await refreshAuth()
+      renderLogin('تم تفعيل الإدارة العامة لهذا الحساب.')
+    }
+
     document.querySelector('#logout').onclick = async () => {
       await supabase.auth.signOut(); await refreshAuth(); renderLogin('تم تسجيل الخروج.')
     }
@@ -274,7 +299,19 @@ async function renderLogin(message='', isError=false) {
         ${notice(message,isError)}
         <button class="btn primary" type="submit">دخول</button>
       </form>
+
+      <div class="subpanel">
+        <h2>إنشاء حساب جديد</h2>
+        <p class="muted">الحساب الجديد لا يحصل على صلاحيات داخلية تلقائيًا؛ الإدارة تربطه بمعرض ودور بعد التسجيل.</p>
+        <form id="signup-form" class="stack">
+          <label>الاسم الكامل<input id="signup-name" autocomplete="name" required></label>
+          <label>البريد الإلكتروني<input id="signup-email" type="email" autocomplete="email" required></label>
+          <label>كلمة المرور<input id="signup-password" type="password" autocomplete="new-password" minlength="8" required></label>
+          <button class="btn" type="submit">إنشاء الحساب</button>
+        </form>
+      </div>
     </section>`)
+
   document.querySelector('#login-form').onsubmit = async e => {
     e.preventDefault()
     const email=document.querySelector('#email').value.trim()
@@ -283,6 +320,26 @@ async function renderLogin(message='', isError=false) {
     if (error) return renderLogin(error.message,true)
     await refreshAuth()
     renderLogin('تم تسجيل الدخول.')
+  }
+
+  document.querySelector('#signup-form').onsubmit = async e => {
+    e.preventDefault()
+    const full_name=document.querySelector('#signup-name').value.trim()
+    const email=document.querySelector('#signup-email').value.trim()
+    const password=document.querySelector('#signup-password').value
+    if(full_name.length<2)return renderLogin('الاسم الكامل مطلوب.',true)
+
+    const {data,error}=await supabase.auth.signUp({
+      email,password,options:{data:{full_name}}
+    })
+    if(error)return renderLogin(error.message,true)
+
+    if(data.session){
+      await refreshAuth()
+      renderLogin('تم إنشاء الحساب وتسجيل الدخول.')
+    }else{
+      renderLogin('تم إنشاء الحساب. أكمل تأكيد البريد الإلكتروني ثم سجل الدخول.')
+    }
   }
 }
 
