@@ -33,3 +33,15 @@ Applied migrations:
    - removed temporary pg_net extension/schema
 
 The recurring audit compares live schema/advisor output against application expectations after material changes.
+
+7. `007_secure_initial_admin_bootstrap`
+   - one-time hashed setup token stored only in private schema
+   - authenticated user may claim first general-admin role once
+   - plaintext setup code is never committed or stored in the database
+
+8. `008_harden_public_booking_rpc`
+   - phone normalization for validation/rate controls
+   - duplicate booking prevention
+   - per-phone hourly booking-attempt ceiling
+   - name/phone/address length validation
+   - phone-level advisory lock for race-safe rate/duplicate checks
