@@ -25,6 +25,7 @@ const escapeHtml = (v='') => String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<
 const fmtDate = v => new Intl.DateTimeFormat('ar-JO', {dateStyle:'medium', timeStyle:'short', timeZone:'Asia/Amman'}).format(new Date(v))
 const fmtTime = v => new Intl.DateTimeFormat('ar-JO', {hour:'numeric',minute:'2-digit',timeZone:'Asia/Amman'}).format(new Date(v))
 const statusLabel = s => ({pending:'جديد',confirmed:'مؤكد',in_progress:'قيد التنفيذ',completed:'مكتمل',cancelled:'ملغي',rejected:'مرفوض'})[s] || s
+const dayLabel = d => ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'][Number(d)] || String(d)
 
 function path() {
   return routes.includes(location.pathname) ? location.pathname : '/'
@@ -299,12 +300,15 @@ async function renderAdmin(message='', isError=false) {
     shell('<section class="panel"><h1>الإدارة العامة</h1><p>هذا الحساب لا يملك صلاحية الإدارة العامة.</p></section>')
     return
   }
-  const [showroomsR, bookingsR] = await Promise.all([
+  const [showroomsR, bookingsR, profilesR, membershipsR] = await Promise.all([
     supabase.from('showrooms').select('*').order('name'),
-    supabase.from('bookings').select('*,showrooms(name,address),services(name),assigned_profile:profiles!bookings_assigned_profile_fk(full_name,phone)').order('scheduled_at',{ascending:false})
+    supabase.from('bookings').select('*,showrooms(name,address),services(name),assigned_profile:profiles!bookings_assigned_profile_fk(full_name,phone)').order('scheduled_at',{ascending:false}),
+    supabase.from('profiles').select('id,full_name,phone,global_role').order('full_name'),
+    supabase.from('showroom_memberships').select('showroom_id,user_id,role,is_active,profile:profiles!showroom_memberships_profile_fk(full_name,phone),showrooms(name)').order('created_at')
   ])
-  if (showroomsR.error || bookingsR.error) return shell(`<section class="panel">${notice(showroomsR.error?.message||bookingsR.error?.message,true)}</section>`)
-  const showrooms=showroomsR.data||[], bookings=bookingsR.data||[]
+  const loadError=showroomsR.error||bookingsR.error||profilesR.error||membershipsR.error
+  if (loadError) return shell(`<section class="panel">${notice(loadError.message,true)}</section>`)
+  const showrooms=showroomsR.data||[], bookings=bookingsR.data||[], profiles=profilesR.data||[], memberships=membershipsR.data||[]
   shell(`
     <section class="panel">
       <div class="page-heading"><div><div class="eyebrow">الإدارة العامة</div><h1>جميع طلبات الاتحاد</h1></div><span class="count-pill">${bookings.length} طلب</span></div>
@@ -324,6 +328,38 @@ async function renderAdmin(message='', isError=false) {
           <label>الهاتف<input id="sr-phone"></label>
           <button class="btn primary" type="submit">إضافة المعرض</button>
         </form>
+      </div>
+
+      <div class="dashboard-grid">
+        <div class="subpanel">
+          <h2>حالة المعارض</h2>
+          ${showrooms.map(s=>`<div class="list-row"><div><strong>${escapeHtml(s.name)}</strong><small>${escapeHtml(s.address||'بدون عنوان')}</small></div><button class="btn small" data-showroom-active="${s.id}" data-active="${s.is_active}">${s.is_active?'إيقاف استقبال':'تفعيل المعرض'}</button></div>`).join('')}
+        </div>
+        <div class="subpanel">
+          <h2>الصلاحيات والارتباط بالمعارض</h2>
+          ${profiles.length ? `
+          <form id="assign-member" class="stack">
+            <label>المستخدم
+              <select id="member-user" required>
+                <option value="">اختر حسابًا</option>
+                ${profiles.map(p=>`<option value="${p.id}">${escapeHtml(p.full_name||p.id)} ${p.global_role==='admin'?'(Admin)':''}</option>`).join('')}
+              </select>
+            </label>
+            <label>المعرض
+              <select id="member-showroom" required>
+                <option value="">اختر معرضًا</option>
+                ${showrooms.map(s=>`<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('')}
+              </select>
+            </label>
+            <label>الدور
+              <select id="member-role"><option value="manager">مدير معرض</option><option value="employee">موظف صيانة</option></select>
+            </label>
+            <button class="btn primary" type="submit">حفظ الصلاحية</button>
+          </form>` : '<div class="empty">لا توجد حسابات Auth/Profile بعد. أنشئ الحسابات أولًا ثم وزّع الصلاحيات هنا.</div>'}
+          <div class="membership-list">
+            ${memberships.map(m=>`<div class="list-row"><div><strong>${escapeHtml(m.profile?.full_name||m.user_id)}</strong><small>${escapeHtml(m.showrooms?.name||m.showroom_id)} · ${m.role==='manager'?'مدير':'موظف'}</small></div><span>${m.is_active?'نشط':'متوقف'}</span></div>`).join('')}
+          </div>
+        </div>
       </div>
 
       <div class="filters">
@@ -370,6 +406,27 @@ async function renderAdmin(message='', isError=false) {
     if(error)return renderAdmin(error.message,true)
     renderAdmin('تمت إضافة المعرض.')
   }
+  document.querySelectorAll('[data-showroom-active]').forEach(btn=>btn.onclick=async()=>{
+    const active=btn.dataset.active==='true'
+    const {error}=await supabase.from('showrooms').update({is_active:!active}).eq('id',btn.dataset.showroomActive)
+    if(error)return renderAdmin(error.message,true)
+    renderAdmin(active?'تم إيقاف استقبال الطلبات للمعرض.':'تم تفعيل المعرض.')
+  })
+
+  const assignForm=document.querySelector('#assign-member')
+  if(assignForm) assignForm.onsubmit=async e=>{
+    e.preventDefault()
+    const user_id=document.querySelector('#member-user').value
+    const showroom_id=document.querySelector('#member-showroom').value
+    const role=document.querySelector('#member-role').value
+    const {error}=await supabase.from('showroom_memberships').upsert(
+      {showroom_id,user_id,role,is_active:true},
+      {onConflict:'showroom_id,user_id'}
+    )
+    if(error)return renderAdmin(error.message,true)
+    renderAdmin('تم حفظ صلاحية المستخدم.')
+  }
+
   bindAdminRows()
 
   function bindAdminRows(){
@@ -436,7 +493,7 @@ async function renderShowroom(message='', isError=false) {
             <div class="grid2"><label>مدة الخانة<input id="av-slot" type="number" min="15" value="60"></label><label>السعة<input id="av-cap" type="number" min="1" max="100" value="1"></label></div>
             <button class="btn primary" type="submit">إضافة دوام</button>
           </form>
-          ${availability.map(a=>`<div class="list-row"><div><strong>يوم ${a.weekday}</strong><small>${escapeHtml(a.start_time)} - ${escapeHtml(a.end_time)}</small></div><label>السعة<input data-capacity="${a.id}" type="number" min="1" max="100" value="${a.capacity}"></label></div>`).join('')}
+          ${availability.map(a=>`<div class="list-row"><div><strong>${escapeHtml(dayLabel(a.weekday))}</strong><small>${escapeHtml(a.start_time)} - ${escapeHtml(a.end_time)}</small></div><label>السعة<input data-capacity="${a.id}" type="number" min="1" max="100" value="${a.capacity}"></label></div>`).join('')}
         </div>
       </div>
       <div class="subpanel">
