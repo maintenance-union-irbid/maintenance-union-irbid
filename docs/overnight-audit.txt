@@ -111,3 +111,22 @@ Auth/demo credentials:
 - No privileged or insecure authentication bypass was added.
 - Supabase connector does not expose an Auth-admin create-user operation, and automated password/bootstrap attempts are blocked by tool safety.
 - Final handoff requires real Supabase Auth accounts for admin/manager/employee and end-to-end role-login tests. This remains an explicit blocker rather than a falsely claimed completion.
+
+
+2026-09-18 18:xx Asia/Amman - Public API, schedule closure and account-bootstrap hardening
+- Added manager UI for showroom name/address/phone/logo maintenance.
+- Added manager UI for per-date closure/holiday creation and removal.
+- Closure QA: get_available_slots returned 0 for a closed date: PASS.
+- Closure QA: direct booking attempt on closed date rejected by database trigger: PASS.
+- Anonymous-role QA: public create_booking RPC succeeded inside rollback transaction: PASS.
+- Anonymous-role QA: direct SELECT of bookings/customer PII was denied at table privilege level: PASS.
+- Added one-time initial-admin bootstrap migration. Only a SHA-256 hash of the setup code is stored in private schema; the plaintext code is not committed.
+- Added self-registration UI; new accounts remain ordinary users until assigned/bootstrapped.
+- Added public booking abuse controls: normalized phone validation, duplicate detection, length limits, phone advisory lock and five-attempt/hour ceiling.
+- Duplicate-booking QA: second identical booking rejected: PASS.
+- Rate-limit QA: sixth booking attempt for one phone inside one hour rejected: PASS.
+- Temporary QA transactions rolled back; no test bookings retained.
+- Vite build now bundles Supabase client from pinned npm dependency instead of relying on a runtime CDN.
+- CSP tightened to self-hosted scripts/styles, HSTS enabled, object-src disabled.
+- Keyboard focus and reduced-motion accessibility rules added.
+- GitHub CI continued to pass after feature changes; final head CI remains monitored by the automation.
