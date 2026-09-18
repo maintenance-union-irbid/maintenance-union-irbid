@@ -301,7 +301,7 @@ async function renderAdmin(message='', isError=false) {
   }
   const [showroomsR, bookingsR] = await Promise.all([
     supabase.from('showrooms').select('*').order('name'),
-    supabase.from('bookings').select('*,showrooms(name,address),services(name)').order('scheduled_at',{ascending:false})
+    supabase.from('bookings').select('*,showrooms(name,address),services(name),assigned_profile:profiles!bookings_assigned_profile_fk(full_name,phone)').order('scheduled_at',{ascending:false})
   ])
   if (showroomsR.error || bookingsR.error) return shell(`<section class="panel">${notice(showroomsR.error?.message||bookingsR.error?.message,true)}</section>`)
   const showrooms=showroomsR.data||[], bookings=bookingsR.data||[]
@@ -354,7 +354,7 @@ async function renderAdmin(message='', isError=false) {
       if(showroom&&b.showroom_id!==showroom)return false
       if(status&&b.status!==status)return false
       if(date&&b.scheduled_at.slice(0,10)!==date)return false
-      if(employee&&!String(b.assigned_employee_id||'').toLowerCase().includes(employee))return false
+      if(employee&&!String(b.assigned_employee_id||'').toLowerCase().includes(employee)&&!String(b.assigned_profile?.full_name||'').toLowerCase().includes(employee))return false
       if(q&&![b.order_number,b.customer_name,b.customer_phone,b.showrooms?.name,b.services?.name].some(v=>String(v||'').toLowerCase().includes(q)))return false
       return true
     })
@@ -388,7 +388,7 @@ function adminRow(b){
     <td>${escapeHtml(b.services?.name||'')}</td>
     <td>${escapeHtml(b.customer_name)}<small class="block">${escapeHtml(b.customer_phone)}</small></td>
     <td>${escapeHtml(fmtDate(b.scheduled_at))}</td>
-    <td class="mono">${escapeHtml(b.assigned_employee_id||'—')}</td>
+    <td>${escapeHtml(b.assigned_profile?.full_name||b.assigned_employee_id||'—')}</td>
     <td><select data-status-id="${b.id}">
       ${['pending','confirmed','in_progress','completed','cancelled','rejected'].map(s=>`<option value="${s}" ${b.status===s?'selected':''}>${statusLabel(s)}</option>`).join('')}
     </select></td>
@@ -406,7 +406,7 @@ async function renderShowroom(message='', isError=false) {
     supabase.from('services').select('*').eq('showroom_id',showroomId).order('name'),
     supabase.from('showroom_availability').select('*').eq('showroom_id',showroomId).order('weekday'),
     supabase.from('bookings').select('*,services(name),showrooms(name,address)').eq('showroom_id',showroomId).order('scheduled_at'),
-    supabase.from('showroom_memberships').select('showroom_id,user_id,role,is_active,profiles:user_id(full_name,phone)').eq('showroom_id',showroomId).eq('role','employee')
+    supabase.from('showroom_memberships').select('showroom_id,user_id,role,is_active,profile:profiles!showroom_memberships_profile_fk(full_name,phone)').eq('showroom_id',showroomId).eq('role','employee')
   ])
   const err=sR.error||svcR.error||avR.error||bR.error||mR.error
   if(err){shell(`<section class="panel">${notice(err.message,true)}</section>`);return}
@@ -445,12 +445,12 @@ async function renderShowroom(message='', isError=false) {
           <label>UUID حساب الموظف<input id="employee-id" required></label>
           <button class="btn primary" type="submit">ربط موظف</button>
         </form>
-        ${employees.map(e=>`<div class="list-row"><div><strong>${escapeHtml(e.profiles?.full_name||e.user_id)}</strong><small>${escapeHtml(e.profiles?.phone||e.user_id)}</small></div><span>${e.is_active?'نشط':'متوقف'}</span></div>`).join('')}
+        ${employees.map(e=>`<div class="list-row"><div><strong>${escapeHtml(e.profile?.full_name||e.user_id)}</strong><small>${escapeHtml(e.profile?.phone||e.user_id)}</small></div><span>${e.is_active?'نشط':'متوقف'}</span></div>`).join('')}
       </div>
       <div class="subpanel">
         <h2>طلبات المعرض</h2>
         <div class="table-wrap"><table><thead><tr><th>الطلب</th><th>الخدمة</th><th>العنوان</th><th>الموعد</th><th>إسناد</th><th>الحالة</th></tr></thead><tbody>
-          ${bookings.map(b=>`<tr><td>${escapeHtml(b.order_number)}</td><td>${escapeHtml(b.services?.name||'')}</td><td>${escapeHtml(b.execution_location==='home'?(b.address_text||''):(showroom?.address||''))}</td><td>${escapeHtml(fmtDate(b.scheduled_at))}</td><td><select data-assign="${b.id}"><option value="">غير مسند</option>${employees.filter(e=>e.is_active).map(e=>`<option value="${e.user_id}" ${b.assigned_employee_id===e.user_id?'selected':''}>${escapeHtml(e.profiles?.full_name||e.user_id)}</option>`).join('')}</select></td><td>${statusLabel(b.status)}</td></tr>`).join('')}
+          ${bookings.map(b=>`<tr><td>${escapeHtml(b.order_number)}</td><td>${escapeHtml(b.services?.name||'')}</td><td>${escapeHtml(b.execution_location==='home'?(b.address_text||''):(showroom?.address||''))}</td><td>${escapeHtml(fmtDate(b.scheduled_at))}</td><td><select data-assign="${b.id}"><option value="">غير مسند</option>${employees.filter(e=>e.is_active).map(e=>`<option value="${e.user_id}" ${b.assigned_employee_id===e.user_id?'selected':''}>${escapeHtml(e.profile?.full_name||e.user_id)}</option>`).join('')}</select></td><td>${statusLabel(b.status)}</td></tr>`).join('')}
         </tbody></table></div>
       </div>
     </section>`)
