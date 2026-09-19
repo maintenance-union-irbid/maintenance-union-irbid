@@ -177,3 +177,7 @@ Auth/demo credentials:
 - No legacy SAFRETK/SOFA/Sofa2/sofa-booking resource was accessed or modified.
 - CLIENT-HANDOFF.txt remains withheld until the production routes are verified over HTTP and supported demo Auth accounts can be created and tested.
 - Next actions: wait for/inspect the Git-triggered Vercel deployment, verify /, /login, /admin, /showroom and /team over HTTP, then finish supported demo Auth setup, sample employee assignment, real sign-in/isolation tests, and client handoff.
+
+- Follow-up verification for commit eb3b20d186214bc028e2d395d011038883d0f11e: GitHub Actions CI run 25 completed successfully.
+- GitHub combined commit status now reports Vercel = success for the same commit, confirming Vercel accepted and built/deployed the Git-connected revision.
+- Vercel's management connector still cannot enumerate the project or fetch the canonical alias, so route-by-route HTTP verification remains pending despite the successful Vercel commit status.
