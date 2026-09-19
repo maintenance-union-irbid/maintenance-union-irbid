@@ -162,3 +162,18 @@ Auth/demo credentials:
 - Attempted a fresh deployment through the available Vercel connector, but the connector's exposed deploy action currently fails its own argument validation while advertising a zero-argument schema. No deployment/project was created by that failed call.
 - CLIENT-HANDOFF.txt remains intentionally withheld: there is still no verified production deployment and supported Supabase Auth-admin user creation is not exposed by the connected management surface.
 - Next actions: retry Vercel deployment when connector deployment input becomes usable or a project appears; then verify /, /login, /admin, /showroom and /team over HTTP. After supported demo Auth creation becomes available, bind manager/employee roles, create the assigned task, execute real sign-in and cross-role isolation tests, and publish handoff only after all checks pass.
+
+
+2026-09-19 03:06 Asia/Amman - Public Git integration activation cycle
+- Reconfirmed latest GitHub main head 0683ed0c0b866451032e3e36dab04e27138015c6 before this audit commit.
+- Repository visibility is now public, which removes the Vercel Hobby limitation that blocked connecting a private organization-owned repository.
+- User confirmed the Vercel project was connected to maintenance-union-irbid/maintenance-union-irbid after the visibility change.
+- Reconfirmed Supabase gcrjwbmeuxaejndlsvrb is ACTIVE_HEALTHY.
+- Re-ran Supabase security advisor. Findings remain limited to the intentionally narrow SECURITY DEFINER RPC surface: anon create_booking/get_available_slots and authenticated claim_initial_admin/create_booking/employee_update_booking/get_available_slots. No new table/RLS exposure finding appeared.
+- Re-ran Supabase performance advisor. Only INFO-level unused-index findings remain for idx_bookings_status and idx_bootstrap_tokens_used_by; no safe corrective production DDL is warranted from current usage.
+- Re-inspected production frontend configuration: Vercel headers include HSTS, nosniff, DENY framing, restrictive permissions policy and a self-only script/style CSP with Supabase as the only remote API origin.
+- The Vercel management connector still reports zero projects for team_MBhIK48bTvqv65VQuyNPjuYO despite the dashboard-side Git connection. Direct authenticated fetch of the canonical project aliases cannot yet resolve a deployment through the connector.
+- This documentation commit is intentionally pushed after Git connection so Vercel Git integration has a fresh main-branch commit to deploy.
+- No legacy SAFRETK/SOFA/Sofa2/sofa-booking resource was accessed or modified.
+- CLIENT-HANDOFF.txt remains withheld until the production routes are verified over HTTP and supported demo Auth accounts can be created and tested.
+- Next actions: wait for/inspect the Git-triggered Vercel deployment, verify /, /login, /admin, /showroom and /team over HTTP, then finish supported demo Auth setup, sample employee assignment, real sign-in/isolation tests, and client handoff.
